@@ -76,15 +76,22 @@ jobs:
           echo '{"appId":"it.massxxx.massistanze","appName":"MassiStanze","webDir":"www","server":{"androidScheme":"http","cleartext":true},"android":{"backgroundColor":"#101218"}}' > capacitor.config.json
           npm install --no-audit --no-fund @capacitor/core@$CAP @capacitor/cli@$CAP @capacitor/android@$CAP @capacitor/app@6
           npx cap add android && npx cap sync android
-      - name: Rete di casa, microfono, musica in sottofondo, icona, versione
+      - name: Rete di casa, microfono, telefono centro, musica in sottofondo, icona, versione
         run: |
           cd app/android
           M=app/src/main/AndroidManifest.xml
           grep -q usesCleartextTraffic $M || sed -i 's#<application#<application android:usesCleartextTraffic="true"#' $M
           sed -i 's#</manifest>#    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n</manifest>#' $M
           grep -q 'RECORD_AUDIO' $M && grep -q 'android.permission.INTERNET' $M
-          A=app/src/main/java/it/massxxx/massistanze/MainActivity.java
-          test -f $A && cp ../../android/java/MainActivity.java $A
+          J=app/src/main/java/it/massxxx/massistanze
+          test -f $J/MainActivity.java
+          cp ../../android/java/*.java $J/
+          cp -r ../../android/centro/it/massxxx/massistanze/centro $J/
+          rm -f $J/centro/Desktop.java
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n</manifest>#' $M
+          sed -i 's#</application>#    <service android:name=".OspitaService" android:exported="false" android:foregroundServiceType="mediaPlayback" />\n    </application>#' $M
+          grep -q OspitaService $M
+          cat $M
           rm -rf app/src/main/res/mipmap-anydpi-v26
           for n in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
             cp ../../icone/android/$n.png app/src/main/res/mipmap-$n/ic_launcher.png

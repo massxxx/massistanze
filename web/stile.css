@@ -230,3 +230,6 @@ input[type=range] { width: 100%; accent-color: var(--accento); height: 28px; }
 #toast { position: fixed; left: 50%; bottom: calc(90px + var(--sa-b)); transform: translateX(-50%); z-index: 60;
   background: #2b3040; color: #fff; padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: 90vw;
   box-shadow: 0 8px 24px rgba(0,0,0,.4); text-align: center; }
+.oppure { text-align: center; color: var(--tenue); font-size: 13px; margin: 6px 0 10px; display: flex; align-items: center; gap: 10px; }
+.oppure::before, .oppure::after { content: ''; flex: 1; height: 1px; background: var(--linea); }
+#collega-ospita .sec { width: 100%; }

@@ -31,7 +31,7 @@ import av
 import numpy as np
 from aiohttp import web, WSMsgType
 
-VERSIONE = "1.0"
+VERSIONE = "1.1"
 PORTA = int(os.environ.get("MASSISTANZE_PORTA", "8766"))
 WINDOWS = sys.platform.startswith("win")
 RATE = 48000                 # campioni al secondo

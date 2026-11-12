@@ -10,6 +10,9 @@
   var host = location.hostname;
   var SUL_PC = !APP && (host === 'localhost' || host === '127.0.0.1');
   var LS = 'massistanze-v1';
+  var OSP = APP && window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('Ospita')
+    ? window.Capacitor.Plugins.Ospita : null;           // il telefono può fare da centro
+  var CENTRO_QUI = 'http://127.0.0.1:' + PORTA;
 
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var el = function (tag, attrs, figli) {
@@ -280,7 +283,9 @@
       impostaCollegato(false);
       silenzioTotale();
       if (mic) fermaAnnuncio();
-      if (!aperto && !SUL_PC) {
+      if (!aperto && st.ospita && OSP) {
+        OSP.avvia().then(riprova, riprova);            // Android può aver chiuso il centro: lo riaccende
+      } else if (!aperto && !SUL_PC) {
         // forse il PIN non vale più: lo controlla con una richiesta normale
         richiesta('GET', '/api/ping', undefined, 4000).then(function (p) {
           if (!p.autorizzato) chiediPin(); else riprova();
@@ -297,7 +302,7 @@
     $('#stato').className = 'stato ' + (v ? 'ok' : 'ko');
     $('#stato').title = v ? 'Collegato al PC' : 'Non collegato';
     var a = $('#avviso');
-    if (!v && (st.token || SUL_PC)) { a.hidden = false; a.textContent = 'Collegamento al PC perso… riprovo'; }
+    if (!v && (st.token || SUL_PC || st.ospita)) { a.hidden = false; a.textContent = 'Collegamento al PC perso… riprovo'; }
     else a.hidden = true;
     aggiornaSblocca();
   }
@@ -312,7 +317,7 @@
       S = m;
       var io = mia();
       if (io.nome && io.nome !== st.nome) { st.nome = io.nome; salvaSt(); }
-      $('#nome-stanza').textContent = (io.nome || '…') + (io.attivo === false ? ' · non suona' : ' · suona qui') + ($('#nome-stanza').dataset.pc ? ' — PC ' + $('#nome-stanza').dataset.pc : '');
+      $('#nome-stanza').textContent = (io.nome || '…') + (io.attivo === false ? ' · non suona' : ' · suona qui') + ($('#nome-stanza').dataset.pc ? ' — centro: ' + $('#nome-stanza').dataset.pc : '');
       if (S.annuncio !== st.id && mic && prima && prima.annuncio === st.id) fermaAnnuncio();
       aggiornaVolume(); aggiornaSblocca(); mediaSession();
       ridisegna();
@@ -845,7 +850,11 @@
       el('label', { class: 'interr' }, [el('span', { text: 'Schermo sempre acceso (consigliato: il telefono continua a suonare)' }), acceso]),
       el('div', { class: 'menu' }, [
         el('button', { text: '💬 Svuota la chat per tutti', onclick: function () { conferma('Cancellare tutti i messaggi della chat?', 'Cancella', function () { manda({ t: 'chat_svuota' }); }); } }),
-        SUL_PC ? null : el('button', { class: 'rosso', text: APP ? '🔌 Collega a un altro PC' : '🔌 Scollega questo dispositivo', onclick: function () {
+        st.ospita ? el('button', { text: '📡 Collega gli altri telefoni', onclick: infoOspita }) : null,
+        st.ospita ? el('button', { class: 'rosso', text: '⏹ Smetti di ospitare', onclick: function () {
+          conferma('Smettere di ospitare? La musica si ferma in tutte le stanze collegate a questo telefono.', 'Smetti', smettiOspitare);
+        } }) : null,
+        SUL_PC || st.ospita ? null : el('button', { class: 'rosso', text: APP ? '🔌 Collega a un altro PC' : '🔌 Scollega questo dispositivo', onclick: function () {
           st.token = ''; if (APP) st.base = ''; salvaSt(); chiudiFoglio(); if (ws) { ws.onclose = null; ws.close(); } impostaCollegato(false); chiediPin(true);
         } })
       ]),
@@ -965,6 +974,63 @@
     for (var k = 0; k < 48; k++) prossimo();
   }
 
+  // ------------------------------------------------------------ il telefono fa da centro
+  function ospita() {
+    var err = $('#collega-errore');
+    var btn = $('#b-ospita-qui');
+    btn.disabled = true; btn.textContent = 'Accendo il centro…';
+    sbloccaAudio();
+    OSP.avvia().then(function (r) {
+      if (!r.attivo) throw new Error(r.errore || 'Il centro non è partito');
+      st.ospita = true; st.base = CENTRO_QUI; st.token = ''; salvaSt();
+      base = CENTRO_QUI;
+      $('#collega').hidden = true;
+      aggiornaOspita();
+      apriWS();
+      toast('📡 Questo telefono ora è il centro');
+      setTimeout(function () {
+        if (!st.nome) chiediTesto('Come si chiama questa stanza?', 'es. Cucina, Camera, Salotto', '', function (n) { st.nome = n; salvaSt(); cmd('stanza', { id: st.id, nome: n }); infoOspita(); });
+        else infoOspita();
+      }, 900);
+    }).catch(function (e) { err.textContent = (e && e.message) || String(e); })
+      .then(function () { btn.disabled = false; btn.textContent = '📡 Ospita da questo telefono'; });
+  }
+  function smettiOspitare() {
+    var fatto = function () {
+      st.ospita = false; st.base = ''; st.token = ''; salvaSt(); base = '';
+      if (ws) { ws.onclose = null; ws.close(); }
+      silenzioTotale(); impostaCollegato(false); aggiornaOspita(); chiediPin(true);
+    };
+    if (OSP) OSP.ferma().then(fatto, fatto); else fatto();
+  }
+  function aggiornaOspita() { $('#b-ospita').hidden = !st.ospita; }
+  function infoOspita() {
+    richiesta('GET', '/api/pc').then(function (d) {
+      if (!d.ip || !d.ip.length) {
+        apriFoglio('📡 Collega gli altri', [el('p', { class: 'nota', style: 'font-size:14px', text: 'Questo telefono non è collegato a un Wi-Fi. Collegalo al Wi-Fi di casa, oppure accendi il suo hotspot e collega lì gli altri telefoni, poi riapri questa finestra.' })]);
+        return;
+      }
+      var url = 'http://' + d.ip[0] + ':' + d.porta;
+      var qr = el('div', { class: 'qr', style: 'margin:8px auto' });
+      try { var q = qrcode(0, 'M'); q.addData(url + '/?pin=' + d.pin); q.make(); qr.innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch (e) {}
+      apriFoglio('📡 Collega gli altri', [
+        el('div', { class: 'piccolo', text: 'Dagli altri telefoni (stesso Wi-Fi o hotspot di questo telefono) inquadra il QR con la fotocamera:' }),
+        qr,
+        el('div', { class: 'piccolo', text: 'oppure apri nel browser:' }),
+        el('div', { class: 'grande', text: url.replace('http://', '') }),
+        d.ip.length > 1 ? el('div', { class: 'piccolo', text: 'Altri indirizzi: ' + d.ip.slice(1).join(', ') }) : null,
+        el('h3', { text: 'PIN' }),
+        el('div', { class: 'riga' }, [el('div', { class: 'grande pin cresce', text: d.pin }),
+          el('button', { class: 'sec', text: 'Nuovo PIN', style: 'padding:8px 12px', onclick: function () {
+            richiesta('POST', '/api/pc/nuovo-pin', {}).then(infoOspita);
+          } })]),
+        el('div', { class: 'nota', text: 'Con l\'app MassiStanze sugli altri Android: scrivi l\'indirizzo qui sopra e il PIN. La musica caricata resta su questo telefono.' }),
+        el('h3', { text: 'Ultime attività' }),
+        el('div', { class: 'registro', text: (d.registro || []).slice().reverse().join('\n') || '—' })
+      ]);
+    }).catch(function (e) { toast(e.message); });
+  }
+
   // ------------------------------------------------------------ pannello del PC
   function pannelloPC() {
     var box = $('#pannello-pc');
@@ -1037,6 +1103,10 @@
     $('#b-collega').addEventListener('click', function () { collega($('#in-pin').value.trim()); });
     $('#in-pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') collega($('#in-pin').value.trim()); });
     $('#b-cerca').addEventListener('click', cercaPC);
+    $('#b-ospita').addEventListener('click', infoOspita);
+    if (OSP) { $('#collega-ospita').hidden = false; $('#b-ospita-qui').addEventListener('click', ospita); }
+    else if (st.ospita) { st.ospita = false; salvaSt(); }
+    aggiornaOspita();
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && foglioAperto) chiudiFoglio(); });
     // il primo tocco ovunque sblocca l'audio (regola dei browser)
     var primo = function () { if (collegato && mia().attivo !== false) sbloccaAudio(); };
@@ -1056,6 +1126,9 @@
         $('#in-pin').value = m[1];
         chiediPin();
         collega(m[1]);
+      } else if (st.ospita && OSP) {
+        base = CENTRO_QUI;
+        OSP.avvia().then(function (r) { if (!r.attivo) toast(r.errore || 'Il centro non è partito'); apriWS(); }, apriWS);
       } else if (!st.token || (APP && !st.base)) chiediPin();
       else apriWS();
     }

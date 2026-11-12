@@ -22,6 +22,7 @@
       <div class="t1">MassiStanze</div>
       <div class="t2" id="nome-stanza">—</div>
     </div>
+    <button id="b-ospita" class="icobtn" aria-label="Collega gli altri" hidden>📡</button>
     <span id="stato" class="stato" title="Collegamento"></span>
     <button id="b-impost" class="icobtn" aria-label="Impostazioni">⚙️</button>
   </header>
@@ -54,17 +55,22 @@
     <h1>MassiStanze</h1>
     <p class="sotto">Musica sincronizzata in tutte le stanze</p>
     <div id="collega-indirizzo">
-      <label>Indirizzo del PC
+      <label>Indirizzo del PC (o del telefono centro)
         <input id="in-ip" inputmode="decimal" placeholder="es. 192.168.1.20" autocomplete="off">
       </label>
-      <button id="b-cerca" class="sec">🔎 Cerca il PC sul Wi-Fi</button>
+      <button id="b-cerca" class="sec">🔎 Cerca sul Wi-Fi</button>
       <div id="cerca-stato" class="piccolo"></div>
     </div>
-    <label>PIN (lo vedi sul PC)
+    <label>PIN (lo vedi sul PC o sul telefono centro)
       <input id="in-pin" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
     </label>
     <button id="b-collega" class="pri">Collega</button>
     <div id="collega-errore" class="errore"></div>
+    <div id="collega-ospita" hidden>
+      <div class="oppure">oppure, senza PC</div>
+      <button id="b-ospita-qui" class="sec">📡 Ospita da questo telefono</button>
+      <div class="piccolo" style="margin-top:6px">Questo telefono fa da centro: tiene la musica e le radio, gli altri si collegano a lui (anche col suo hotspot).</div>
+    </div>
     <details class="aiuto">
       <summary>Come si fa?</summary>
       <ol>
