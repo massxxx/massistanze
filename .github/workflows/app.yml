@@ -31,10 +31,10 @@ jobs:
         shell: pwsh
         run: |
           $env:MASSISTANZE_DATI = "$env:RUNNER_TEMP\ms"
-          $p = Start-Process python -ArgumentList 'pc/massistanze.py','--avvio' -PassThru -WindowStyle Hidden -RedirectStandardOutput "$env:RUNNER_TEMP\log.txt"
+          $p = Start-Process python -ArgumentList 'pc/massistanze.py','--avvio' -PassThru -WindowStyle Hidden -RedirectStandardOutput "$env:RUNNER_TEMP\log.txt" -RedirectStandardError "$env:RUNNER_TEMP\err.txt"
           Start-Sleep 4
           python ci/prova.py http://127.0.0.1:8766 --radio
-          if ($LASTEXITCODE -ne 0) { Get-Content "$env:RUNNER_TEMP\log.txt"; throw 'prova fallita' }
+          if ($LASTEXITCODE -ne 0) { Get-Content "$env:RUNNER_TEMP\log.txt"; Get-Content "$env:RUNNER_TEMP\err.txt"; throw 'prova fallita' }
           $pc = Invoke-RestMethod http://127.0.0.1:8766/api/pc
           "IP: $($pc.ip -join ', ')  PIN: $($pc.pin)  Firewall: $($pc.firewall | ConvertTo-Json -Compress)"
           if (-not $pc.firewall.letto) { throw 'stato firewall non letto' }

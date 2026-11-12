@@ -28,7 +28,12 @@ def wav_di_prova(secondi=3, freq=440):
 
 async def main():
     async with aiohttp.ClientSession(trust_env=False) as s:
-        p = await (await s.get(BASE + "/api/ping")).json()
+        for _ in range(60):                       # aspetta che il programma sia acceso
+            try:
+                p = await (await s.get(BASE + "/api/ping")).json()
+                break
+            except aiohttp.ClientError:
+                await asyncio.sleep(1)
         assert p["app"] == "MassiStanze", p
         print("ping ok:", p)
         ids = []

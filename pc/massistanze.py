@@ -1267,8 +1267,8 @@ def main():
         if not silenzioso:
             webbrowser.open("http://localhost:%d/" % PORTA)
         return
-    log("MassiStanze %s acceso — dal telefono apri http://%s:%d  —  PIN %s" % (
-        VERSIONE, ip_locali()[0], PORTA, SEGRETI["pin"]))
+    threading.Thread(target=lambda: log("MassiStanze %s acceso — dal telefono apri http://%s:%d  —  PIN %s" % (
+        VERSIONE, ip_locali()[0], PORTA, SEGRETI["pin"])), daemon=True).start()
     if not silenzioso:
         threading.Timer(1.0, lambda: webbrowser.open("http://localhost:%d/" % PORTA)).start()
     try:
