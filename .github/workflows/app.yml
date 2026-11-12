@@ -1,0 +1,125 @@
+name: MassiStanze
+
+# Costruisce il programma per Windows e l'app Android e li mette nella pagina Releases (tag "app"):
+#   https://github.com/massxxx/massistanze/releases/latest/download/MassiStanze.exe
+#   https://github.com/massxxx/massistanze/releases/latest/download/MassiStanze.apk
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: app
+  cancel-in-progress: true
+
+env:
+  CAP: '6.2.0'
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Librerie
+        run: pip install aiohttp==3.14.5 numpy av==19.0.2 pyinstaller
+      - name: Prova del programma su Windows (brani, chat, radio vere)
+        shell: pwsh
+        run: |
+          $env:MASSISTANZE_DATI = "$env:RUNNER_TEMP\ms"
+          $p = Start-Process python -ArgumentList 'pc/massistanze.py','--avvio' -PassThru -WindowStyle Hidden -RedirectStandardOutput "$env:RUNNER_TEMP\log.txt"
+          Start-Sleep 4
+          python ci/prova.py http://127.0.0.1:8766 --radio
+          if ($LASTEXITCODE -ne 0) { Get-Content "$env:RUNNER_TEMP\log.txt"; throw 'prova fallita' }
+          $pc = Invoke-RestMethod http://127.0.0.1:8766/api/pc
+          "IP: $($pc.ip -join ', ')  PIN: $($pc.pin)  Firewall: $($pc.firewall | ConvertTo-Json -Compress)"
+          if (-not $pc.firewall.letto) { throw 'stato firewall non letto' }
+          Get-Content "$env:RUNNER_TEMP\log.txt"
+          Stop-Process -Id $p.Id
+      - name: MassiStanze.exe
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --onefile --noconsole --name MassiStanze --icon icone/massistanze.ico --add-data "web;web" --collect-submodules av pc/massistanze.py
+          $env:MASSISTANZE_DATI = "$env:RUNNER_TEMP\ms2"
+          $p = Start-Process dist/MassiStanze.exe -ArgumentList '--avvio' -PassThru
+          Start-Sleep 10
+          $html = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8766/
+          if ($html.Content -notmatch 'MassiStanze') { throw 'exe non funziona' }
+          python ci/prova.py http://127.0.0.1:8766
+          if ($LASTEXITCODE -ne 0) { throw 'exe: prova fallita' }
+          Invoke-RestMethod -Method Post -ContentType 'application/json' -Body '{}' http://127.0.0.1:8766/api/pc/chiudi
+          Start-Sleep 2
+          Copy-Item dist/MassiStanze.exe MassiStanze.exe
+          Get-Item MassiStanze.exe | Select-Object Name, Length
+      - uses: actions/upload-artifact@v4
+        with: {name: exe, path: MassiStanze.exe}
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - name: Pagina dell'app
+        run: python3 build.py
+      - name: Progetto Capacitor
+        run: |
+          mkdir -p app && cd app
+          cp -r ../www www
+          echo '{"name":"massistanze","version":"1.0.0","private":true}' > package.json
+          echo '{"appId":"it.massxxx.massistanze","appName":"MassiStanze","webDir":"www","server":{"androidScheme":"http","cleartext":true},"android":{"backgroundColor":"#101218"}}' > capacitor.config.json
+          npm install --no-audit --no-fund @capacitor/core@$CAP @capacitor/cli@$CAP @capacitor/android@$CAP @capacitor/app@6
+          npx cap add android && npx cap sync android
+      - name: Rete di casa, microfono, musica in sottofondo, icona, versione
+        run: |
+          cd app/android
+          M=app/src/main/AndroidManifest.xml
+          grep -q usesCleartextTraffic $M || sed -i 's#<application#<application android:usesCleartextTraffic="true"#' $M
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n</manifest>#' $M
+          grep -q 'RECORD_AUDIO' $M && grep -q 'android.permission.INTERNET' $M
+          A=app/src/main/java/it/massxxx/massistanze/MainActivity.java
+          test -f $A && cp ../../android/java/MainActivity.java $A
+          rm -rf app/src/main/res/mipmap-anydpi-v26
+          for n in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            cp ../../icone/android/$n.png app/src/main/res/mipmap-$n/ic_launcher.png
+            cp ../../icone/android/$n.png app/src/main/res/mipmap-$n/ic_launcher_round.png
+            rm -f app/src/main/res/mipmap-$n/ic_launcher_foreground.png
+          done
+          N=${{ github.run_number }}
+          sed -i "s/versionCode 1$/versionCode $N/; s/versionName \"1.0\"/versionName \"1.$N\"/" app/build.gradle
+      - name: APK
+        run: |
+          K=$GITHUB_WORKSPACE/android/debug.keystore
+          cd app/android && chmod +x gradlew && ./gradlew --no-daemon assembleRelease \
+            -Pandroid.injected.signing.store.file=$K -Pandroid.injected.signing.store.password=android \
+            -Pandroid.injected.signing.key.alias=androiddebugkey -Pandroid.injected.signing.key.password=android
+          cp app/build/outputs/apk/release/app-release.apk ../../MassiStanze.apk
+          ls -la ../../MassiStanze.apk
+      - uses: actions/upload-artifact@v4
+        with: {name: apk, path: MassiStanze.apk}
+
+  pubblica:
+    needs: [windows, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {merge-multiple: true}
+      - name: Pubblica in Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la MassiStanze.exe MassiStanze.apk
+          N="Versione 1.${{ github.run_number }}.
+
+          PC Windows: scarica MassiStanze.exe e avvialo (se Windows SmartScreen avvisa: «Ulteriori informazioni» › «Esegui comunque»; se il firewall chiede, consenti le reti private).
+          Telefono Android: scarica MassiStanze.apk e aprilo per installarlo. Qualsiasi telefono (anche iPhone): apri nel browser l'indirizzo che MassiStanze mostra sul PC."
+          gh release view app >/dev/null 2>&1 || gh release create app --title "MassiStanze" --notes "$N" --latest
+          gh release upload app MassiStanze.exe MassiStanze.apk --clobber
+          gh release edit app --notes "$N" --latest

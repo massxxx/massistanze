@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#101218">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MassiStanze</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icona-192.png">
+<link rel="apple-touch-icon" href="icona-192.png">
+<link rel="stylesheet" href="stile.css">
+<!--APP-->
+</head>
+<body>
+<div id="app">
+  <header id="barra">
+    <img src="icona-192.png" alt="" class="logo-mini">
+    <div class="titoli">
+      <div class="t1">MassiStanze</div>
+      <div class="t2" id="nome-stanza">—</div>
+    </div>
+    <span id="stato" class="stato" title="Collegamento"></span>
+    <button id="b-impost" class="icobtn" aria-label="Impostazioni">⚙️</button>
+  </header>
+  <div id="avviso" hidden></div>
+  <button id="sblocca" hidden>🔊 Tocca qui per far suonare questa stanza</button>
+  <main id="corpo">
+    <div id="viste">
+      <section id="v-onda" class="vista"></section>
+      <section id="v-musica" class="vista" hidden></section>
+      <section id="v-radio" class="vista" hidden></section>
+      <section id="v-stanze" class="vista" hidden></section>
+      <section id="v-chat" class="vista" hidden></section>
+    </div>
+    <aside id="pannello-pc" hidden></aside>
+  </main>
+  <div id="mini" hidden></div>
+  <nav id="schede">
+    <button data-v="onda" class="attiva"><span>▶️</span>In onda</button>
+    <button data-v="musica"><span>🎵</span>Musica</button>
+    <button data-v="radio"><span>📻</span>Radio</button>
+    <button data-v="stanze"><span>🏠</span>Stanze</button>
+    <button data-v="chat"><span>💬</span>Chat<b id="badge" hidden>0</b></button>
+  </nav>
+</div>
+
+<!-- schermata di collegamento -->
+<div id="collega" class="schermo" hidden>
+  <div class="scheda-centro">
+    <img src="icona-192.png" alt="" class="logo">
+    <h1>MassiStanze</h1>
+    <p class="sotto">Musica sincronizzata in tutte le stanze</p>
+    <div id="collega-indirizzo">
+      <label>Indirizzo del PC
+        <input id="in-ip" inputmode="decimal" placeholder="es. 192.168.1.20" autocomplete="off">
+      </label>
+      <button id="b-cerca" class="sec">🔎 Cerca il PC sul Wi-Fi</button>
+      <div id="cerca-stato" class="piccolo"></div>
+    </div>
+    <label>PIN (lo vedi sul PC)
+      <input id="in-pin" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+    </label>
+    <button id="b-collega" class="pri">Collega</button>
+    <div id="collega-errore" class="errore"></div>
+    <details class="aiuto">
+      <summary>Come si fa?</summary>
+      <ol>
+        <li>Sul PC Windows avvia <b>MassiStanze.exe</b>. Se Windows chiede il permesso del firewall, consenti le <b>reti private</b>.</li>
+        <li>Si apre una pagina sul PC con l'<b>indirizzo</b> e il <b>PIN</b>.</li>
+        <li>Telefono e PC devono essere sullo <b>stesso Wi-Fi</b>.</li>
+        <li>Scrivi qui indirizzo e PIN, oppure inquadra il QR del PC con la fotocamera.</li>
+      </ol>
+    </details>
+  </div>
+</div>
+
+<div id="velo" hidden></div>
+<div id="foglio" class="foglio" hidden></div>
+<div id="toast" hidden></div>
+
+<script src="qrcode.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+www/
+app/
+dist/
+build/
+*.spec
+__pycache__/
+*.exe
+*.apk
