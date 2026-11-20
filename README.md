@@ -1,5 +1,7 @@
 # MassiStanze
 
+[![Scarica l'APK per Android](https://img.shields.io/badge/Scarica-APK%20Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/massxxx/massistanze/releases/latest/download/MassiStanze.apk)
+
 Musica sincronizzata in tutte le stanze di casa: il PC fa da centro e telefoni, browser e PC suonano insieme.
 
 - **Musica**: carichi gli MP3 (o m4a, wav, flac, ogg…) dal telefono, vengono salvati sul PC. Coda, playlist, casuale, ripeti.
